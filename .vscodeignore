@@ -1,0 +1,11 @@
+.vscode/**
+.vscode-test/**
+src/**
+.gitignore
+tsconfig.json
+webpack.config.js
+**/*.map
+**/*.ts
+node_modules/**
+!node_modules/http-proxy/**
+*.vsix 
