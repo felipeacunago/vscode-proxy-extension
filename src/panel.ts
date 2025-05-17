@@ -113,7 +113,7 @@ export class ProxyPanel {
     const config = vscode.workspace.getConfiguration('proxyExtension');
     const destination = config.get<string>('destination') || '';
     const tokenCommand = config.get<string>('tokenCommand') || '';
-    const proxyPort = config.get<number>('proxyPort') || 8080;
+    const proxyPort = config.get<number>('proxyPort') || 123456;
     const tokenRotationMinutes = config.get<number>('tokenRotationMinutes') || 60;
     
     const isRunning = this._proxyServer.isRunning();

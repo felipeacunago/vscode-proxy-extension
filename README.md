@@ -21,7 +21,7 @@ This extension contributes the following settings:
 
 * `proxyExtension.destination`: The destination URL to proxy requests to (e.g., `http://example.com/api`)
 * `proxyExtension.tokenCommand`: Command to execute to get bearer token (e.g., `gcloud auth print-identity-token`)
-* `proxyExtension.proxyPort`: Port to run the proxy server on (default: `8080`)
+* `proxyExtension.proxyPort`: Port to run the proxy server on (default: `123456`)
 * `proxyExtension.tokenRotationMinutes`: Time in minutes to rotate the token (default: `60`)
 
 ## Commands
@@ -51,7 +51,7 @@ You can also start and stop the server directly from the command palette using t
 {
   "proxyExtension.destination": "https://api.example.com",
   "proxyExtension.tokenCommand": "gcloud auth print-identity-token",
-  "proxyExtension.proxyPort": 8080,
+  "proxyExtension.proxyPort": 123456,
   "proxyExtension.tokenRotationMinutes": 60
 }
 ```

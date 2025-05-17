@@ -46,7 +46,7 @@
         },
         "proxyExtension.proxyPort": {
           "type": "number",
-          "default": 8080,
+          "default": 123456,
           "description": "Port to run the proxy server on"
         },
         "proxyExtension.tokenRotationMinutes": {

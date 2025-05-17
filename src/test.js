@@ -6,7 +6,7 @@ const http = require('http');
 // Make a request to the proxy server
 const options = {
   hostname: 'localhost',
-  port: 8080, // The default port of the proxy server
+  port: 123456, // The default port of the proxy server
   path: '/', // This will be forwarded to the destination
   method: 'GET',
 };

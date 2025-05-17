@@ -1,3 +1,22 @@
+/**
+ * @file proxyServer.ts
+ * @description This file contains the ProxyServer class, which is used to start and stop the proxy server.
+ * @author Felipe Acuña
+ * @version 1.0.0
+ * @since 2025-05-17
+ * 
+ * console.log are keep as they are for debugging purposes, and won't be shown to the user.
+ * Only vscode.window.showInformationMessage and vscode.window.showErrorMessage are shown to the user.
+ * 
+ * Server is created using http.createServer, and proxy is created using http-proxy.
+ * All requests are forwarded to the destination URL (POST, GET, etc.), and the response is returned to the client.
+ * 
+ * Token rotation is implemented, and the token is rotated every tokenRotationMinutes minutes.
+ * If the token command is empty, authentication is disabled.
+ * Only Bearer token is supported.
+ * Token is stored in the class, and is used to authenticate requests to the destination URL.
+ */
+
 import * as http from 'http';
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
@@ -34,7 +53,7 @@ export class ProxyServer {
     const config = vscode.workspace.getConfiguration('proxyExtension');
     const destination = config.get<string>('destination');
     const tokenCommand = config.get<string>('tokenCommand') || '';
-    const proxyPort = config.get<number>('proxyPort') || 8080;
+    const proxyPort = config.get<number>('proxyPort') || 123456;
     const tokenRotationMinutes = config.get<number>('tokenRotationMinutes') || 60;
 
     // Determine if we should use authentication based on token command
