@@ -2,9 +2,9 @@ name: Build VSCode Extension
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -31,7 +31,7 @@ jobs:
         run: npm run package
 
       - name: Upload extension package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: proxy-extension
           path: dist/
