@@ -16,20 +16,26 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 16
           cache: 'npm'
           
       - name: Install dependencies
-        run: npm ci
+        run: npm install
         
       - name: Build extension
-        run: npm run package
+        run: npm run compile
         
       - name: Install vsce
         run: npm install -g @vscode/vsce
         
       - name: Package extension
         run: vsce package
+        
+      # Uncomment the following step if you want to publish to VS Code Marketplace
+      # You'll need to add a secret named VSCE_PAT with your Personal Access Token
+      # - name: Publish to VS Code Marketplace
+      #   if: success()
+      #   run: vsce publish -p ${{ secrets.VSCE_PAT }}
         
       - name: Create GitHub Release
         id: create_release
