@@ -18,6 +18,7 @@
  */
 
 import * as http from 'http';
+import * as https from 'https';
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
 
@@ -73,52 +74,117 @@ export class ProxyServer {
         vscode.window.showInformationMessage('Token command is empty. Authentication is disabled.');
       }
       
-      // Create a proxy server with improved options
-      this.proxy = httpProxy.createProxyServer({
-        target: destination,
-        changeOrigin: true,
-        secure: false, // Don't verify SSL certificates
-        followRedirects: true, // Follow HTTP redirects
-        xfwd: true // Add x-forwarded headers
-      });
-
-      // Handle proxy errors with more detailed logging
-      this.proxy.on('error', (err: Error, req: http.IncomingMessage, res: http.ServerResponse) => {
-        const errorMsg = `Proxy error: ${err.message}. Target: ${destination}`;
-        console.error(errorMsg, err.stack);
-        vscode.window.showErrorMessage(errorMsg);
-        
-        if (res instanceof http.ServerResponse && !res.headersSent) {
-          res.writeHead(500, {
-            'Content-Type': 'text/plain'
-          });
-          res.end(`Proxy error: ${err.message}`);
-        }
-      });
-
-      // Add detailed logging for debugging
-      this.proxy.on('proxyReq', (proxyReq: http.ClientRequest, req: http.IncomingMessage) => {
-        console.log(`Proxying request to: ${req.url}`);
-        
-        // Only add authentication if enabled and token is not empty
-        if (this.shouldUseAuthentication && this.token && this.token.trim() !== '') {
-          console.log('Adding bearer token to request');
-          proxyReq.setHeader('Authorization', `Bearer ${this.token}`);
-        } else {
-          console.log('Skipping authentication for this request');
-        }
-      });
-
-      // Log response info
-      this.proxy.on('proxyRes', (proxyRes: http.IncomingMessage) => {
-        console.log(`Got response with status code: ${proxyRes.statusCode}`);
-      });
-
-      // Create the server
-      this.server = http.createServer((req, res) => {
+      // Create the server with direct request handling
+      this.server = http.createServer(async (req, res) => {
         console.log(`Received request for: ${req.url}`);
-        if (this.proxy) {
-          this.proxy.web(req, res);
+        
+        try {
+          const url = new URL(destination);
+          const isHttps = url.protocol === 'https:';
+          const options = {
+            hostname: url.hostname,
+            port: url.port || (isHttps ? 443 : 80),
+            path: req.url,
+            method: req.method,
+            headers: { ...req.headers },
+            timeout: 30000, // 30 second timeout
+            keepAlive: true,
+            keepAliveMsecs: 1000,
+            maxSockets: 50,
+            rejectUnauthorized: false // Don't verify SSL certificates
+          };
+
+          // Add authorization header if needed
+          if (this.shouldUseAuthentication && this.token && this.token.trim() !== '') {
+            const sanitizedToken = this.token.trim().replace(/[\r\n\s]+/g, '');
+            options.headers['Authorization'] = `Bearer ${sanitizedToken}`;
+            console.log(sanitizedToken)
+          }
+
+          // Remove problematic headers
+          delete options.headers['host'];
+          delete options.headers['connection'];
+          delete options.headers['proxy-connection'];
+
+          console.log('Making proxy request with options:', {
+            hostname: options.hostname,
+            port: options.port,
+            path: options.path,
+            method: options.method,
+            protocol: isHttps ? 'https' : 'http'
+          });
+
+          const requestFn = isHttps ? https.request : http.request;
+          const proxyReq = requestFn(options, (proxyRes) => {
+            console.log(`Received response with status: ${proxyRes.statusCode}`);
+            
+            // Handle redirects
+            if (proxyRes.statusCode === 301 || proxyRes.statusCode === 302) {
+              const location = proxyRes.headers.location;
+              if (location) {
+                console.log(`Redirecting to: ${location}`);
+                res.writeHead(proxyRes.statusCode, { 'Location': location });
+                res.end();
+                return;
+              }
+            }
+
+            // Copy response headers
+            const responseHeaders = { ...proxyRes.headers };
+            delete responseHeaders['connection'];
+            delete responseHeaders['proxy-connection'];
+            
+            res.writeHead(proxyRes.statusCode || 500, responseHeaders);
+            
+            // Handle response streaming
+            proxyRes.on('error', (err) => {
+              console.error('Error streaming response:', err);
+              if (!res.headersSent) {
+                res.writeHead(500);
+                res.end('Error streaming response');
+              }
+            });
+
+            proxyRes.pipe(res);
+          });
+
+          // Set up request timeout
+          proxyReq.setTimeout(30000, () => {
+            console.error('Request timeout');
+            proxyReq.destroy();
+            if (!res.headersSent) {
+              res.writeHead(504);
+              res.end('Gateway Timeout');
+            }
+          });
+
+          // Handle request errors
+          proxyReq.on('error', (err) => {
+            console.error('Proxy request error:', err);
+            if (!res.headersSent) {
+              res.writeHead(502);
+              res.end(`Proxy request failed: ${err.message}`);
+            }
+          });
+
+          // Handle client disconnect
+          req.on('close', () => {
+            console.log('Client disconnected');
+            proxyReq.destroy();
+          });
+
+          // Handle request body
+          if (req.method !== 'GET' && req.method !== 'HEAD') {
+            req.pipe(proxyReq);
+          } else {
+            proxyReq.end();
+          }
+        } catch (error) {
+          console.error('Error handling request:', error);
+          if (!res.headersSent) {
+            res.writeHead(500);
+            res.end('Internal server error');
+          }
         }
       });
 
@@ -212,8 +278,9 @@ export class ProxyServer {
       // Execute the command to get the token
       console.log(`Executing token command: ${tokenCommand}`);
       try {
-        const result = execSync(tokenCommand, { encoding: 'utf-8', timeout: 10000 }).trim();
-        this.token = result;
+        const result = execSync(tokenCommand, { encoding: 'utf-8', timeout: 60000 }).trim();
+        // Sanitize the token by removing any whitespace, newlines, and special characters
+        this.token = result.replace(/[\r\n\s]+/g, '');
         console.log('Token rotated successfully');
         vscode.window.showInformationMessage('Token rotated successfully');
       } catch (execError) {
